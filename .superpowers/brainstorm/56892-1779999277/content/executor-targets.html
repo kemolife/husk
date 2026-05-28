@@ -1,0 +1,40 @@
+<h2>Which deployment executor targets should this support?</h2>
+<p class="subtitle">This shapes the adapter layer. You can pick multiple — but each adds complexity to the domain model.</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="ssh" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>SSH + Shell</h3>
+      <p>Connect to remote server, run docker compose up / shell scripts. Simplest executor. Good for VPS, bare metal.</p>
+      <p><strong>Port:</strong> <code>SSHExecutorAdapter</code></p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="docker" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Docker API</h3>
+      <p>Talk directly to Docker daemon via HTTP socket. Pull images, run containers, inspect logs. No SSH needed.</p>
+      <p><strong>Port:</strong> <code>DockerApiAdapter</code></p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="kubernetes" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Kubernetes</h3>
+      <p>Apply manifests via k8s API. Rollouts, rollbacks, health checks via pod status. Most complex adapter.</p>
+      <p><strong>Port:</strong> <code>KubernetesAdapter</code></p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="local" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Local Process</h3>
+      <p>Run commands on same machine as Symfony (dev/testing). Useful for CI runners or single-server setups.</p>
+      <p><strong>Port:</strong> <code>LocalProcessAdapter</code></p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,8 @@
+{   "context": "Autocomplete",
+    "bindings": {
+        "tab": "autocomplete:accept",
+        "escape": "autocomplete:dismiss",
+        "up": "autocomplete:previous",
+        "down": "autocomplete:next"
+    }
+}
