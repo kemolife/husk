@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true">
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Domain</directory>
+        </testsuite>
+        <testsuite name="integration">
+            <directory>tests/Application</directory>
+        </testsuite>
+        <testsuite name="functional">
+            <directory>tests/Infrastructure</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <ini name="error_reporting" value="-1"/>
+        <server name="APP_ENV" value="test" force="true"/>
+        <server name="SYMFONY_DEPRECATIONS_HELPER" value="999999"/>
+        <server name="DATABASE_URL" value="postgresql://app:app@localhost:5432/pipeline_test" force="true"/>
+        <server name="MESSENGER_TRANSPORT_DSN" value="in-memory://" force="true"/>
+    </php>
+</phpunit>
