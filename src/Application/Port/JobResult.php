@@ -5,8 +5,8 @@ namespace App\Application\Port;
 final readonly class JobResult
 {
     private function __construct(
-        public readonly bool $success,
-        public readonly string $output,
+        private bool $success,
+        public string $output,
     ) {}
 
     public static function success(string $output = ''): self
