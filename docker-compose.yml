@@ -1,37 +1,36 @@
+x-app-env: &app-env
+  APP_ENV: dev
+  APP_SECRET: devsecret
+  DATABASE_URL: postgresql://app:app@db:5432/pipeline
+  MESSENGER_TRANSPORT_DSN: amqp://app:app@rabbitmq:5672/%2f/messages
+
+x-app-depends: &app-depends
+  db:
+    condition: service_healthy
+  rabbitmq:
+    condition: service_healthy
+
 services:
   app:
     build: .
     ports:
-      - "8080:8080"
+      - "8080:9000"
     environment:
-      APP_ENV: dev
-      APP_SECRET: devsecret
-      DATABASE_URL: postgresql://app:app@db:5432/pipeline
-      MESSENGER_TRANSPORT_DSN: amqp://app:app@rabbitmq:5672/%2f/messages
+      <<: *app-env
     volumes:
       - .:/var/www/app
     depends_on:
-      db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      <<: *app-depends
 
   worker:
     build: .
     command: php bin/console messenger:consume async --time-limit=3600 -vv
     environment:
-      APP_ENV: dev
-      APP_SECRET: devsecret
-      DATABASE_URL: postgresql://app:app@db:5432/pipeline
-      MESSENGER_TRANSPORT_DSN: amqp://app:app@rabbitmq:5672/%2f/messages
+      <<: *app-env
     volumes:
       - .:/var/www/app
-      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      <<: *app-depends
 
   db:
     image: postgres:16-alpine
