@@ -118,6 +118,9 @@ class PipelineRun
 
     public function markAsAwaitingApproval(): void
     {
+        if ($this->status !== PipelineRunStatus::RUNNING) {
+            throw InvalidStatusTransitionException::for('PipelineRun', $this->status->value, 'awaiting_approval');
+        }
         $this->status = PipelineRunStatus::AWAITING_APPROVAL;
     }
 

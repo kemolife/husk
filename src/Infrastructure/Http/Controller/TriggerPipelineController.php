@@ -17,7 +17,8 @@ class TriggerPipelineController
     #[Route('/pipelines/{id}/run', methods: ['POST'])]
     public function __invoke(string $id, Request $request): JsonResponse
     {
-        $body = json_decode($request->getContent(), true, 512, JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING) ?: [];
+        $content = $request->getContent();
+        $body = $content !== '' ? json_decode($content, true, 512, JSON_THROW_ON_ERROR) : [];
         $environment = $body['environment'] ?? 'staging';
 
         $runId = PipelineRunId::generate();
