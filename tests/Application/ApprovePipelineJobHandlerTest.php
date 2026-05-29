@@ -35,7 +35,7 @@ class ApprovePipelineJobHandlerTest extends TestCase
         $run->markAsAwaitingApproval();
         $runRepo->save($run);
 
-        $pipelineRepo = $this->createConfiguredMock(PipelineRepositoryPort::class, ['findById' => $pipeline]);
+        $pipelineRepo = $this->createConfiguredStub(PipelineRepositoryPort::class, ['findById' => $pipeline]);
         $handler = new ApprovePipelineJobHandler($pipelineRepo, $runRepo, new MessageBus([]));
         $handler(new ApprovePipelineJobCommand($run->id()->value, 'gate', true));
 
@@ -58,7 +58,7 @@ class ApprovePipelineJobHandlerTest extends TestCase
         $run->markAsAwaitingApproval();
         $runRepo->save($run);
 
-        $pipelineRepo = $this->createConfiguredMock(PipelineRepositoryPort::class, ['findById' => $pipeline]);
+        $pipelineRepo = $this->createConfiguredStub(PipelineRepositoryPort::class, ['findById' => $pipeline]);
         $handler = new ApprovePipelineJobHandler($pipelineRepo, $runRepo, new MessageBus([]));
         $handler(new ApprovePipelineJobCommand($run->id()->value, 'gate', false));
 

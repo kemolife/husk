@@ -50,7 +50,7 @@ class ExecuteJobHandlerTest extends TestCase
         $jobRun->markAsRunning();
         $this->runRepo->save($run);
 
-        $pipelineRepo = $this->createConfiguredMock(PipelineRepositoryPort::class, ['findById' => $pipeline]);
+        $pipelineRepo = $this->createConfiguredStub(PipelineRepositoryPort::class, ['findById' => $pipeline]);
 
         $handler = new ExecuteJobHandler($pipelineRepo, $this->runRepo, $this->executor, $this->bus);
         $handler(new ExecuteJobCommand($run->id()->value, 'build'));
@@ -69,7 +69,7 @@ class ExecuteJobHandlerTest extends TestCase
         $jobRun->markAsRunning();
         $this->runRepo->save($run);
 
-        $pipelineRepo = $this->createConfiguredMock(PipelineRepositoryPort::class, ['findById' => $pipeline]);
+        $pipelineRepo = $this->createConfiguredStub(PipelineRepositoryPort::class, ['findById' => $pipeline]);
 
         $handler = new ExecuteJobHandler($pipelineRepo, $this->runRepo, $this->executor, $this->bus);
         $handler(new ExecuteJobCommand($run->id()->value, 'gate'));

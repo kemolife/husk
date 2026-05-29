@@ -36,7 +36,7 @@ class TriggerPipelineHandlerTest extends TestCase
             new Job('test', JobType::SCRIPT, 'php:8.4-cli', 'phpunit', ['build'], null),
         ]);
 
-        $pipelineRepo = $this->createConfiguredMock(PipelineRepositoryPort::class, [
+        $pipelineRepo = $this->createConfiguredStub(PipelineRepositoryPort::class, [
             'findById' => $pipeline,
         ]);
 
