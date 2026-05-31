@@ -27,6 +27,15 @@ class JobRun
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private PipelineRun $pipelineRun;
 
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $output = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $startedAt = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $finishedAt = null;
+
     public function __construct(string $id, string $jobId, JobType $type)
     {
         $this->id = $id;
@@ -40,6 +49,16 @@ class JobRun
     public function status(): JobRunStatus { return $this->status; }
     public function isPending(): bool { return $this->status === JobRunStatus::PENDING; }
     public function isApproval(): bool { return $this->type === JobType::APPROVAL; }
+    public function output(): ?string { return $this->output; }
+    public function startedAt(): ?\DateTimeImmutable { return $this->startedAt; }
+    public function finishedAt(): ?\DateTimeImmutable { return $this->finishedAt; }
+
+    public function recordExecution(string $output, \DateTimeImmutable $startedAt, \DateTimeImmutable $finishedAt): void
+    {
+        $this->output = $output;
+        $this->startedAt = $startedAt;
+        $this->finishedAt = $finishedAt;
+    }
 
     public function setPipelineRun(PipelineRun $run): void
     {
