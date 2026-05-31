@@ -2,6 +2,9 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { usePipelineRun } from '../../../../features/pipeline-runs/hooks/usePipelineRun'
 import { RunHeader } from '../../../../features/pipeline-runs/components/RunHeader'
+import { JobGraph } from '../../../../features/pipeline-runs/components/JobGraph'
+import { LogPanel } from '../../../../features/pipeline-runs/components/LogPanel'
+import { ApprovalBanner } from '../../../../features/pipeline-runs/components/ApprovalBanner'
 
 export const Route = createFileRoute('/pipelines/$pipelineId/runs/$runId')({
   component: RunDetailPage,
@@ -24,7 +27,7 @@ function RunDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full">
+      <div className="flex h-[calc(100vh-48px)]">
         <div className="w-80 border-r border-gray-800 p-4 space-y-2">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="h-9 bg-gray-800 rounded-lg animate-pulse" />
@@ -67,6 +70,13 @@ function RunDetailPage() {
 
   if (!run) return null
 
+  const selectedJob = run.jobs.find((j) => j.job_id === selectedJobId)
+  // Log lines from job output — will be replaced with SSE streaming once backend ships
+  // TODO: replace with useLogStream when GET /pipeline-runs/{runId}/jobs/{jobId}/logs/stream is live
+  const logLines = selectedJob?.output
+    ? selectedJob.output.split('\n').filter(Boolean)
+    : []
+
   return (
     <div className="flex flex-col h-[calc(100vh-48px)]">
       <RunHeader run={run} pipelineId={pipelineId} />
@@ -74,42 +84,26 @@ function RunDetailPage() {
         {/* Job graph — left panel */}
         <div className="w-80 shrink-0 overflow-y-auto border-r border-gray-800 p-4">
           <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-3">Jobs</p>
-          <div className="space-y-1">
-            {run.jobs.map((job) => (
-              <button
-                key={job.id}
-                onClick={() => setSelectedJobId(job.job_id)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors ${
-                  selectedJobId === job.job_id
-                    ? 'bg-gray-800 border-l-2 border-blue-500'
-                    : 'hover:bg-gray-800/50'
-                }`}
-              >
-                <span className="flex-1 text-gray-200 font-mono text-xs truncate">{job.job_id}</span>
-                <span className={`text-xs font-medium ${
-                  job.status === 'success' ? 'text-green-400' :
-                  job.status === 'failed' ? 'text-red-400' :
-                  job.status === 'running' ? 'text-blue-400' :
-                  job.status === 'awaiting_approval' ? 'text-amber-400' :
-                  'text-gray-500'
-                }`}>{job.status}</span>
-              </button>
-            ))}
-          </div>
+          <JobGraph
+            jobs={run.jobs}
+            selectedJobId={selectedJobId}
+            onSelectJob={setSelectedJobId}
+          />
         </div>
 
-        {/* Log panel — right panel (placeholder until Task 7) */}
-        <div className="flex-1 overflow-hidden bg-[#0d1117] p-4 font-mono text-xs text-gray-300">
-          {selectedJobId ? (
-            <div>
-              <p className="text-gray-500 mb-2"># {selectedJobId}</p>
-              <p className="text-gray-400">Log output coming in Task 7…</p>
-            </div>
-          ) : (
-            <p className="text-gray-600">Select a job to view logs</p>
-          )}
+        {/* Log panel — right panel */}
+        <div className="flex-1 overflow-hidden">
+          <LogPanel
+            lines={logLines}
+            status={selectedJob?.status}
+            jobId={selectedJobId ?? undefined}
+            mode="snapshot"
+          />
         </div>
       </div>
+
+      {/* Approval banner — sticky bottom, shown when any job awaiting approval */}
+      <ApprovalBanner run={run} />
     </div>
   )
 }
