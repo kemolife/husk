@@ -36,7 +36,7 @@ class DoctrinePipelineRunRepository implements PipelineRunRepositoryPort
             ->from(PipelineRun::class, 'r')
             ->where('r.pipelineId = :pipelineId')
             ->setParameter('pipelineId', $pipelineId)
-            ->orderBy('r.id', 'DESC')
+            ->orderBy('r.createdAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();

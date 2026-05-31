@@ -34,6 +34,8 @@ class DockerSocketExecutorAdapter implements ExecutorPort
                 try { $this->removeContainer($containerId); } catch (\Throwable) {}
             }
             return JobResult::failure($e->getMessage());
+        } finally {
+            try { $this->removeVolume($volumeName); } catch (\Throwable) {}
         }
     }
 
@@ -43,18 +45,29 @@ class DockerSocketExecutorAdapter implements ExecutorPort
 
     private function ensureVolume(string $name): void
     {
-        $this->request('POST', '/volumes/create', ['Name' => $name]);
+        $r = $this->request('POST', '/volumes/create', ['Name' => $name]);
+        if ($r['status'] >= 500) {
+            throw new \RuntimeException("Docker volume create failed ({$r['status']}): {$r['body']}");
+        }
+    }
+
+    private function removeVolume(string $name): void
+    {
+        $this->request('DELETE', "/volumes/{$name}");
     }
 
     private function pullImage(string $image): void
     {
         [$from, $tag] = array_pad(explode(':', $image, 2), 2, 'latest');
-        $this->request('POST', "/images/create?fromImage={$from}&tag={$tag}");
+        $r = $this->request('POST', "/images/create?fromImage={$from}&tag={$tag}");
+        if ($r['status'] >= 400) {
+            throw new \RuntimeException("Docker image pull failed ({$r['status']}): {$r['body']}");
+        }
     }
 
     private function createContainer(Job $job, string $image, string $volumeName, Environment $environment): string
     {
-        $response = $this->request('POST', '/containers/create', [
+        $r = $this->request('POST', '/containers/create', [
             'Image' => $image,
             'Cmd' => ['/bin/sh', '-c', $job->script ?? 'true'],
             'Env' => ["PIPELINE_ENV={$environment->value}"],
@@ -65,26 +78,36 @@ class DockerSocketExecutorAdapter implements ExecutorPort
             ],
         ]);
 
-        $data = json_decode($response['body'], true, 512, JSON_THROW_ON_ERROR);
+        if ($r['status'] >= 400) {
+            throw new \RuntimeException("Docker container create failed ({$r['status']}): {$r['body']}");
+        }
+
+        $data = json_decode($r['body'], true, 512, JSON_THROW_ON_ERROR);
+        if (!isset($data['Id'])) {
+            throw new \RuntimeException("Docker container create returned no ID: {$r['body']}");
+        }
         return $data['Id'];
     }
 
     private function startContainer(string $id): void
     {
-        $this->request('POST', "/containers/{$id}/start");
+        $r = $this->request('POST', "/containers/{$id}/start");
+        if ($r['status'] >= 400) {
+            throw new \RuntimeException("Docker container start failed ({$r['status']}): {$r['body']}");
+        }
     }
 
     private function waitContainer(string $id): int
     {
-        $response = $this->request('POST', "/containers/{$id}/wait");
-        $data = json_decode($response['body'], true, 512, JSON_THROW_ON_ERROR);
+        $r = $this->request('POST', "/containers/{$id}/wait");
+        $data = json_decode($r['body'], true, 512, JSON_THROW_ON_ERROR);
         return $data['StatusCode'] ?? 1;
     }
 
     private function getLogs(string $id): string
     {
-        $response = $this->request('GET', "/containers/{$id}/logs?stdout=1&stderr=1");
-        return $this->stripDockerLogHeaders($response['body']);
+        $r = $this->request('GET', "/containers/{$id}/logs?stdout=1&stderr=1");
+        return $this->stripDockerLogHeaders($r['body']);
     }
 
     private function removeContainer(string $id): void

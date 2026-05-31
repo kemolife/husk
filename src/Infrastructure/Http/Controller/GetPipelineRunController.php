@@ -6,6 +6,7 @@ use App\Application\Query\GetPipelineRunStatus\GetPipelineRunStatusQuery;
 use App\Domain\PipelineRun\PipelineRunNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\Exception\HandlerFailedException;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\HandledStamp;
 use Symfony\Component\Routing\Attribute\Route;
@@ -33,8 +34,12 @@ class GetPipelineRunController
                     'output' => $j->output,
                 ], $view->jobs),
             ]);
-        } catch (PipelineRunNotFoundException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
+        } catch (HandlerFailedException $e) {
+            $cause = $e->getPrevious();
+            if ($cause instanceof PipelineRunNotFoundException) {
+                return new JsonResponse(['error' => $cause->getMessage()], Response::HTTP_NOT_FOUND);
+            }
+            throw $e;
         }
     }
 }

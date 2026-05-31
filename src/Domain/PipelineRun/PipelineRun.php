@@ -27,6 +27,9 @@ class PipelineRun
     #[ORM\Column(type: 'string', enumType: Environment::class)]
     private Environment $environment;
 
+    #[ORM\Column(type: 'datetime_immutable')]
+    private \DateTimeImmutable $createdAt;
+
     #[ORM\OneToMany(targetEntity: JobRun::class, mappedBy: 'pipelineRun', cascade: ['persist', 'remove'])]
     private Collection $jobRuns;
 
@@ -36,6 +39,7 @@ class PipelineRun
         $this->pipelineId = $pipeline->id()->value;
         $this->environment = $environment;
         $this->status = PipelineRunStatus::PENDING;
+        $this->createdAt = new \DateTimeImmutable();
         $this->jobRuns = new ArrayCollection();
 
         foreach ($pipeline->jobs() as $job) {
@@ -108,11 +112,17 @@ class PipelineRun
 
     public function markAsSuccess(): void
     {
+        if ($this->status->isTerminal()) {
+            throw InvalidStatusTransitionException::for('PipelineRun', $this->status->value, 'success');
+        }
         $this->status = PipelineRunStatus::SUCCESS;
     }
 
     public function markAsFailed(): void
     {
+        if ($this->status->isTerminal()) {
+            throw InvalidStatusTransitionException::for('PipelineRun', $this->status->value, 'failed');
+        }
         $this->status = PipelineRunStatus::FAILED;
     }
 
