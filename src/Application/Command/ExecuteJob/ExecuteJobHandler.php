@@ -35,7 +35,7 @@ class ExecuteJobHandler
             return;
         }
 
-        $result = $this->executor->run($job, $run->environment());
+        $result = $this->executor->run($job, $run->environment(), $run->id()->value);
 
         if ($result->isSuccess()) {
             $jobRun->markAsSuccess();

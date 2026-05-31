@@ -7,5 +7,5 @@ use App\Domain\Shared\Environment;
 
 interface ExecutorPort
 {
-    public function run(Job $job, Environment $environment): JobResult;
+    public function run(Job $job, Environment $environment, string $runId): JobResult;
 }
