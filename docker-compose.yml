@@ -26,6 +26,7 @@ services:
   worker:
     build: .
     command: php bin/console messenger:consume async --time-limit=3600 -vv
+    user: root
     environment:
       <<: *app-env
     volumes:
