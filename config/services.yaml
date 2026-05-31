@@ -22,7 +22,9 @@ services:
         class: App\Infrastructure\Persistence\Doctrine\DoctrinePipelineRunRepository
 
     App\Application\Port\ExecutorPort:
-        class: App\Infrastructure\Executor\FakeExecutorAdapter
+        class: App\Infrastructure\Executor\DockerSocketExecutorAdapter
+        arguments:
+            $socketPath: '/var/run/docker.sock'
 
     App\Infrastructure\Http\Controller\ListPipelinesController:
         arguments:

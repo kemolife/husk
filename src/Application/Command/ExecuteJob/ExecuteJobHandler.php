@@ -35,7 +35,10 @@ class ExecuteJobHandler
             return;
         }
 
-        $result = $this->executor->run($job, $run->environment());
+        $startedAt = new \DateTimeImmutable();
+        $result = $this->executor->run($job, $run->environment(), $command->pipelineRunId);
+        $finishedAt = new \DateTimeImmutable();
+        $jobRun->recordExecution($result->output, $startedAt, $finishedAt);
 
         if ($result->isSuccess()) {
             $jobRun->markAsSuccess();

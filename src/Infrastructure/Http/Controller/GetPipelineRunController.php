@@ -30,6 +30,7 @@ class GetPipelineRunController
                     'id' => $j->id,
                     'job_id' => $j->jobId,
                     'status' => $j->status,
+                    'output' => $j->output,
                 ], $view->jobs),
             ]);
         } catch (PipelineRunNotFoundException $e) {

@@ -8,5 +8,6 @@ final readonly class JobRunStatusView
         public string $id,
         public string $jobId,
         public string $status,
+        public ?string $output = null,
     ) {}
 }

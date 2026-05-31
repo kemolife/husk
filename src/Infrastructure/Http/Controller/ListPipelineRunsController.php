@@ -26,7 +26,7 @@ class ListPipelineRunsController
 
         $data = array_map(function ($run) {
             $jobs = array_map(
-                fn($jr) => new JobRunStatusView($jr->id(), $jr->jobId(), $jr->status()->value),
+                fn($jr) => new JobRunStatusView($jr->id(), $jr->jobId(), $jr->status()->value, $jr->output()),
                 $run->jobRuns()
             );
             $view = new PipelineRunStatusView(
@@ -45,6 +45,7 @@ class ListPipelineRunsController
                     'id' => $j->id,
                     'job_id' => $j->jobId,
                     'status' => $j->status,
+                    'output' => $j->output,
                 ], $view->jobs),
             ];
         }, $runs);
