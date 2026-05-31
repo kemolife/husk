@@ -75,7 +75,7 @@ class PipelineRun
 
             $job = $pipeline->job($jr->jobId());
 
-            if (!$this->conditionMatches($job->condition)) {
+            if (!$this->conditionMatches($job->condition) || $this->anyNeedsSkipped($job->needs)) {
                 $jr->markAsSkipped();
                 continue;
             }
@@ -135,6 +135,19 @@ class PipelineRun
         }
 
         return true;
+    }
+
+    /** @param string[] $needs */
+    private function anyNeedsSkipped(array $needs): bool
+    {
+        foreach ($needs as $neededJobId) {
+            foreach ($this->jobRuns as $jr) {
+                if ($jr->jobId() === $neededJobId && $jr->status() === JobRunStatus::SKIPPED) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** @param string[] $needs */
