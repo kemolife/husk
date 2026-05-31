@@ -9,9 +9,11 @@ interface Props {
 }
 
 export function JobGraph({ jobs, selectedJobId, onSelectJob }: Props) {
+  const visible = jobs.filter((j) => j.status !== 'skipped')
+
   return (
     <div className="flex flex-col">
-      {jobs.map((job, index) => (
+      {visible.map((job, index) => (
         <Fragment key={job.id}>
           <JobNode
             job={job}
@@ -19,7 +21,7 @@ export function JobGraph({ jobs, selectedJobId, onSelectJob }: Props) {
             onSelect={() => onSelectJob(job.job_id)}
           />
           {/* SVG connector line between nodes */}
-          {index < jobs.length - 1 && (
+          {index < visible.length - 1 && (
             <div className="flex justify-center py-0.5">
               <svg width="2" height="12" className="overflow-visible">
                 <line
@@ -33,7 +35,7 @@ export function JobGraph({ jobs, selectedJobId, onSelectJob }: Props) {
           )}
         </Fragment>
       ))}
-      {jobs.length === 0 && (
+      {visible.length === 0 && (
         <p className="text-gray-600 text-xs text-center py-4">No jobs</p>
       )}
     </div>
