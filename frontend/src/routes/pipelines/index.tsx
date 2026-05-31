@@ -17,8 +17,28 @@ const MOCK_PIPELINES: Pipeline[] = [
 ]
 
 export const Route = createFileRoute('/pipelines/')({
+  pendingComponent: PipelinesIndexSkeleton,
   component: PipelinesIndexPage,
 })
+
+function PipelinesIndexSkeleton() {
+  return (
+    <div>
+      <div className="px-6 py-5 border-b border-gray-800">
+        <div className="h-5 w-24 bg-gray-800 rounded animate-pulse" />
+        <div className="h-3 w-48 bg-gray-800 rounded animate-pulse mt-1.5" />
+      </div>
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-6 py-4 border-b border-gray-800">
+          <div className="h-4 w-32 bg-gray-800 rounded animate-pulse" />
+          <div className="h-5 w-16 bg-gray-800 rounded-full animate-pulse" />
+          <div className="flex-1" />
+          <div className="h-7 w-12 bg-gray-800 rounded animate-pulse" />
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function PipelinesIndexPage() {
   return (
