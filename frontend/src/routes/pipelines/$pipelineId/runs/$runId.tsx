@@ -71,10 +71,11 @@ function RunDetailPage() {
   if (!run) return null
 
   const selectedJob = run.jobs.find((j) => j.job_id === selectedJobId)
-  // Log lines from job output — will be replaced with SSE streaming once backend ships
-  // TODO: replace with useLogStream when GET /pipeline-runs/{runId}/jobs/{jobId}/logs/stream is live
+  // TODO: replace with real output once backend persists job logs (iteration 2)
   const logLines = selectedJob?.output
     ? selectedJob.output.split('\n').filter(Boolean)
+    : selectedJob
+    ? [`[${selectedJob.status}] ${selectedJob.job_id} — log output not yet captured by backend`]
     : []
 
   return (

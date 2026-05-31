@@ -12,4 +12,7 @@ interface PipelineRunRepositoryPort
 
     /** @throws PipelineRunNotFoundException */
     public function findById(PipelineRunId $id): PipelineRun;
+
+    /** @return PipelineRun[] */
+    public function findByPipelineId(string $pipelineId, int $limit = 20): array;
 }

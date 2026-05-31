@@ -1,27 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { RunRow } from '../../../features/pipeline-runs/components/RunRow'
 import { EnvironmentPicker } from '../../../features/pipelines/components/EnvironmentPicker'
 import { useTriggerRun } from '../../../features/pipelines/hooks/useTriggerRun'
-import type { PipelineRunStatus, Environment } from '../../../lib/constants'
-
-interface RunSummary {
-  id: string
-  pipelineId: string
-  status: PipelineRunStatus
-  environment: Environment
-  startedAt?: string
-  durationMs?: number
-}
-
-// TODO: Replace with useQuery when GET /pipeline-runs?pipeline_id=X ships in iteration 2
-function getMockRuns(pipelineId: string): RunSummary[] {
-  return [
-    { id: 'aabbccdd-1111-2222-3333-444455556666', pipelineId, status: 'success', environment: 'staging', startedAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(), durationMs: 47000 },
-    { id: 'bbccddee-2222-3333-4444-555566667777', pipelineId, status: 'failed', environment: 'production', startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), durationMs: 12000 },
-    { id: 'ccddeeff-3333-4444-5555-666677778888', pipelineId, status: 'awaiting_approval', environment: 'staging', startedAt: new Date(Date.now() - 10 * 60 * 1000).toISOString() },
-  ]
-}
+import { fetchPipelineRuns } from '../../../api/client'
+import type { Environment } from '../../../lib/constants'
 
 export const Route = createFileRoute('/pipelines/$pipelineId/')({
   component: PipelineDetailPage,
@@ -32,7 +16,12 @@ function PipelineDetailPage() {
   const [showPicker, setShowPicker] = useState(false)
   const [env, setEnv] = useState<Environment>('staging')
   const trigger = useTriggerRun()
-  const runs = getMockRuns(pipelineId)
+
+  const { data: runs = [], isLoading } = useQuery({
+    queryKey: ['pipeline-runs', pipelineId],
+    queryFn: () => fetchPipelineRuns(pipelineId),
+    refetchInterval: 5000,
+  })
 
   function handleRunAgain() {
     if (!showPicker) { setShowPicker(true); return }
@@ -65,18 +54,34 @@ function PipelineDetailPage() {
         </div>
       </div>
 
-      {runs.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-px">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-6 py-3 border-b border-gray-800">
+              <div className="h-5 w-16 bg-gray-800 rounded-full animate-pulse" />
+              <div className="h-4 w-20 bg-gray-800 rounded animate-pulse" />
+              <div className="flex-1" />
+              <div className="h-4 w-12 bg-gray-800 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      ) : runs.length === 0 ? (
         <div className="flex items-center justify-center py-16">
           <p className="text-gray-500 text-sm">No runs yet — trigger the first run.</p>
         </div>
       ) : (
         <div>
           {runs.map((run) => (
-            <RunRow key={run.id} run={run} />
+            <RunRow
+              key={run.id}
+              run={{
+                id: run.id,
+                pipelineId: run.pipeline_id,
+                status: run.status,
+                environment: run.environment,
+              }}
+            />
           ))}
-          <div className="px-6 py-3">
-            <button className="text-gray-600 hover:text-gray-400 text-xs">Load more</button>
-          </div>
         </div>
       )}
     </div>

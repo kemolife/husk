@@ -28,4 +28,17 @@ class DoctrinePipelineRunRepository implements PipelineRunRepositoryPort
 
         return $run;
     }
+
+    public function findByPipelineId(string $pipelineId, int $limit = 20): array
+    {
+        return $this->em->createQueryBuilder()
+            ->select('r')
+            ->from(PipelineRun::class, 'r')
+            ->where('r.pipelineId = :pipelineId')
+            ->setParameter('pipelineId', $pipelineId)
+            ->orderBy('r.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
 }

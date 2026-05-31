@@ -24,4 +24,13 @@ class InMemoryPipelineRunRepository implements PipelineRunRepositoryPort
         }
         return $this->store[$id->value];
     }
+
+    public function findByPipelineId(string $pipelineId, int $limit = 20): array
+    {
+        $results = array_filter(
+            $this->store,
+            fn(PipelineRun $r) => $r->pipelineId() === $pipelineId
+        );
+        return array_slice(array_values($results), 0, $limit);
+    }
 }
