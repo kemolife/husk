@@ -23,3 +23,7 @@ services:
 
     App\Application\Port\ExecutorPort:
         class: App\Infrastructure\Executor\FakeExecutorAdapter
+
+    App\Infrastructure\Http\Controller\ListPipelinesController:
+        arguments:
+            $pipelinesDir: '%pipelines_dir%'

@@ -16,6 +16,8 @@ framework:
                         failed: ~
 
         routing:
-            App\Application\Command\TriggerPipeline\TriggerPipelineCommand: async
+            # TriggerPipeline runs synchronously in the HTTP process — creates the PipelineRun
+            # record immediately so GET /pipeline-runs/{id} works right after the 202 response.
+            # Only job execution is async.
             App\Application\Command\ExecuteJob\ExecuteJobCommand: async
             App\Application\Command\ApprovePipelineJob\ApprovePipelineJobCommand: async

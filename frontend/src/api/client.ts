@@ -75,3 +75,11 @@ export const rejectJob = (runId: string, jobId: string): Promise<ApproveResponse
 
 export const fetchPipelineRuns = (pipelineId: string): Promise<PipelineRun[]> =>
   apiFetch(`/pipeline-runs?pipeline_id=${encodeURIComponent(pipelineId)}`)
+
+export interface Pipeline {
+  id: string
+  name: string
+}
+
+export const fetchPipelines = (): Promise<Pipeline[]> =>
+  apiFetch('/pipelines')
