@@ -44,7 +44,7 @@ class DockerSocketExecutorAdapter implements ExecutorPort
     {
         return new CurlHttpClient([
             'base_uri' => 'http://localhost',
-            'extra' => ['curl' => [\CURLOPT_UNIX_SOCKET_PATH => $this->socketPath]],
+            'bindto' => $this->socketPath,
         ]);
     }
 
