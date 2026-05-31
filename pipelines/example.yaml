@@ -21,7 +21,7 @@ jobs:
   docker-build:
     needs: [unit-test, lint]
     image: alpine:3.19
-    script: echo "Image built: myapp:latest"
+    script: echo 'Image built: myapp:latest'
 
   deploy-staging:
     needs: docker-build
