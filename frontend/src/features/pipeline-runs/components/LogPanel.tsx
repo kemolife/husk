@@ -59,11 +59,15 @@ export function LogPanel({ lines, status, jobId, mode = 'snapshot' }: Props) {
         {lines.length === 0 && !isTerminal ? (
           <p className="text-gray-600">Waiting for output…</p>
         ) : (
-          lines.map((line, i) => (
-            <div key={i} className="text-gray-300 whitespace-pre-wrap break-all">
-              {line}
-            </div>
-          ))
+          lines.map((line, i) =>
+            line === '---' ? (
+              <hr key={i} className="border-gray-700 my-2" />
+            ) : (
+              <div key={i} className="text-gray-300 whitespace-pre-wrap break-all">
+                {line}
+              </div>
+            )
+          )
         )}
 
         {/* Final status line */}

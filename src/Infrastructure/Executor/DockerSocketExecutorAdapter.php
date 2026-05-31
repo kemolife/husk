@@ -23,7 +23,7 @@ class DockerSocketExecutorAdapter implements ExecutorPort
             $containerId = $this->createContainer($job, $image, $volumeName, $environment);
             $this->startContainer($containerId);
             $exitCode = $this->waitContainer($containerId);
-            $output = "Pulling image: {$image}\n" . $this->getLogs($containerId);
+            $output = "Pulling image: {$image}\n---\n" . $this->getLogs($containerId);
             $this->removeContainer($containerId);
 
             return $exitCode === 0
