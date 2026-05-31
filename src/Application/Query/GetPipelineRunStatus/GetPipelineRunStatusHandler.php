@@ -16,7 +16,7 @@ class GetPipelineRunStatusHandler
         $run = $this->runRepo->findById(new PipelineRunId($query->pipelineRunId));
 
         $jobs = array_map(
-            fn($jr) => new JobRunStatusView($jr->id(), $jr->jobId(), $jr->status()->value),
+            fn($jr) => new JobRunStatusView($jr->id(), $jr->jobId(), $jr->status()->value, $jr->output()),
             $run->jobRuns()
         );
 
