@@ -1,14 +1,17 @@
 FROM php:8.4-fpm-alpine
 
 RUN apk add --no-cache \
-        postgresql-dev \
+        libpq \
         rabbitmq-c \
+    && apk add --no-cache --virtual .build-deps \
+        postgresql-dev \
         rabbitmq-c-dev \
+        linux-headers \
         $PHPIZE_DEPS \
     && docker-php-ext-install pdo pdo_pgsql sockets opcache \
     && pecl install amqp \
     && docker-php-ext-enable amqp \
-    && apk del rabbitmq-c-dev $PHPIZE_DEPS
+    && apk del .build-deps
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -25,4 +28,4 @@ RUN composer dump-autoload --optimize \
 
 USER www-data
 
-CMD ["php-fpm"]
+CMD ["php", "-S", "0.0.0.0:8080", "-t", "public"]

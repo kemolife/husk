@@ -2,8 +2,8 @@ name: Example Pipeline
 
 jobs:
   build:
-    image: alpine:3.19
-    script: echo "Build complete"
+    image: composer:2
+    script: composer --version
 
   unit-test:
     needs: build
