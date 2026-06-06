@@ -36,12 +36,17 @@ class JobRun
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $finishedAt = null;
 
-    public function __construct(string $id, string $jobId, JobType $type)
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $matrixValues = null;
+
+    /** @param array<string,string>|null $matrixValues */
+    public function __construct(string $id, string $jobId, JobType $type, ?array $matrixValues = null)
     {
         $this->id = $id;
         $this->jobId = $jobId;
         $this->type = $type;
         $this->status = JobRunStatus::PENDING;
+        $this->matrixValues = $matrixValues;
     }
 
     public function id(): string { return $this->id; }
@@ -52,6 +57,8 @@ class JobRun
     public function output(): ?string { return $this->output; }
     public function startedAt(): ?\DateTimeImmutable { return $this->startedAt; }
     public function finishedAt(): ?\DateTimeImmutable { return $this->finishedAt; }
+    /** @return array<string,string>|null */
+    public function matrixValues(): ?array { return $this->matrixValues; }
 
     public function recordExecution(string $output, \DateTimeImmutable $startedAt, \DateTimeImmutable $finishedAt): void
     {

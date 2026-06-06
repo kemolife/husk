@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { approveJob } from '../../../api/client'
 import type { PipelineRun } from '../../../api/client'
 
-export function useApproveJob(runId: string) {
+export function useApproveJob(runId: string, pipelineId?: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ jobId }: { jobId: string }) => approveJob(runId, jobId),
@@ -28,6 +28,9 @@ export function useApproveJob(runId: string) {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-run', runId] })
+      if (pipelineId) {
+        queryClient.invalidateQueries({ queryKey: ['pipeline-runs', pipelineId] })
+      }
     },
   })
 }

@@ -1,16 +1,21 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { StatusPill } from '../../pipeline-runs/components/StatusPill'
+import { JobStrip } from '../../pipeline-runs/components/JobStrip'
 import { EnvironmentPicker } from './EnvironmentPicker'
 import { useTriggerRun } from '../hooks/useTriggerRun'
-import { relativeTime } from '../../../lib/utils'
-import type { Environment, PipelineRunStatus } from '../../../lib/constants'
+import type { Environment, JobRunStatus, PipelineRunStatus } from '../../../lib/constants'
+
+interface LastRun {
+  id: string
+  status: PipelineRunStatus
+  jobs: Array<{ job_id: string; status: JobRunStatus }>
+}
 
 interface Pipeline {
   id: string
   name: string
-  lastRunStatus?: PipelineRunStatus
-  lastRunAt?: string
+  lastRun?: LastRun
 }
 
 interface Props {
@@ -31,20 +36,26 @@ export function PipelineRow({ pipeline }: Props) {
   }
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 hover:bg-gray-900/50">
-      <div className="flex items-center gap-4 min-w-0">
+    <div className="flex items-center gap-4 px-6 py-4 border-b border-gray-800 hover:bg-gray-900/50">
+      <div className="flex items-center gap-4 min-w-0 flex-1">
         <Link
           to="/pipelines/$pipelineId"
           params={{ pipelineId: pipeline.id }}
-          className="text-white font-medium text-sm hover:text-blue-300 truncate"
+          className="text-white font-medium text-sm hover:text-blue-300 truncate shrink-0"
         >
           {pipeline.name}
         </Link>
-        {pipeline.lastRunStatus && (
-          <StatusPill status={pipeline.lastRunStatus} size="sm" />
-        )}
-        {pipeline.lastRunAt && (
-          <span className="text-gray-500 text-xs">{relativeTime(pipeline.lastRunAt)}</span>
+        {pipeline.lastRun && (
+          <Link
+            to="/pipelines/$pipelineId/runs/$runId"
+            params={{ pipelineId: pipeline.id, runId: pipeline.lastRun.id }}
+            className="flex items-center gap-2"
+          >
+            <StatusPill status={pipeline.lastRun.status} size="sm" />
+            {pipeline.lastRun.jobs.length > 0 && (
+              <JobStrip jobs={pipeline.lastRun.jobs} />
+            )}
+          </Link>
         )}
       </div>
 

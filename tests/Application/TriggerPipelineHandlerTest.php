@@ -4,6 +4,7 @@ namespace App\Tests\Application;
 
 use App\Application\Command\TriggerPipeline\TriggerPipelineCommand;
 use App\Application\Command\TriggerPipeline\TriggerPipelineHandler;
+use App\Application\Port\PipelineEventRepositoryPort;
 use App\Application\Port\PipelineRepositoryPort;
 use App\Domain\Pipeline\Job;
 use App\Domain\Pipeline\JobType;
@@ -42,7 +43,7 @@ class TriggerPipelineHandlerTest extends TestCase
 
         $runId = PipelineRunId::generate();
         $bus = new MessageBus([]);
-        $handler = new TriggerPipelineHandler($pipelineRepo, $this->runRepo, $bus);
+        $handler = new TriggerPipelineHandler($pipelineRepo, $this->runRepo, $bus, $this->createStub(PipelineEventRepositoryPort::class));
         $handler(new TriggerPipelineCommand($runId->value, 'p1', 'staging'));
 
         $run = $this->runRepo->findById($runId);

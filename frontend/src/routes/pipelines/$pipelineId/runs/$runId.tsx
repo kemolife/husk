@@ -20,9 +20,9 @@ function RunDetailPage() {
     if (!run) return
     if (selectedJobId) return
     const running = run.jobs.find((j) => j.status === 'running')
-    if (running) { setSelectedJobId(running.job_id); return }
+    if (running) { setSelectedJobId(running.id); return }
     const failed = run.jobs.find((j) => j.status === 'failed')
-    if (failed) setSelectedJobId(failed.job_id)
+    if (failed) setSelectedJobId(failed.id)
   }, [run, selectedJobId])
 
   if (isLoading) {
@@ -70,7 +70,7 @@ function RunDetailPage() {
 
   if (!run) return null
 
-  const selectedJob = run.jobs.find((j) => j.job_id === selectedJobId)
+  const selectedJob = run.jobs.find((j) => j.id === selectedJobId)
   // TODO: replace with real output once backend persists job logs (iteration 2)
   const logLines = selectedJob?.output
     ? selectedJob.output.split('\n').filter(Boolean)
@@ -97,7 +97,7 @@ function RunDetailPage() {
           <LogPanel
             lines={logLines}
             status={selectedJob?.status}
-            jobId={selectedJobId ?? undefined}
+            jobId={selectedJob?.job_id}
             mode="snapshot"
           />
         </div>

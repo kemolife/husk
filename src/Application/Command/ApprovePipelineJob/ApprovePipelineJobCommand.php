@@ -8,5 +8,6 @@ final readonly class ApprovePipelineJobCommand
         public string $pipelineRunId,
         public string $jobId,
         public bool $approved,
+        public string $actorId = 'system',
     ) {}
 }

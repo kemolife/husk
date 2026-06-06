@@ -13,13 +13,18 @@ services:
             - '../src/Kernel.php'
 
     # Port bindings
-    App\Application\Port\PipelineRepositoryPort:
-        class: App\Infrastructure\Persistence\Yaml\YamlFilePipelineRepository
+    App\Infrastructure\Persistence\Yaml\YamlFilePipelineRepository:
         arguments:
             $pipelinesDir: '%pipelines_dir%'
 
+    App\Application\Port\PipelineRepositoryPort:
+        alias: App\Infrastructure\Persistence\Yaml\YamlFilePipelineRepository
+
     App\Application\Port\PipelineRunRepositoryPort:
         class: App\Infrastructure\Persistence\Doctrine\DoctrinePipelineRunRepository
+
+    App\Application\Port\SecretRepositoryPort:
+        class: App\Infrastructure\Secrets\EnvSecretAdapter
 
     App\Application\Port\ExecutorPort:
         class: App\Infrastructure\Executor\DockerSocketExecutorAdapter
@@ -29,3 +34,20 @@ services:
     App\Infrastructure\Http\Controller\ListPipelinesController:
         arguments:
             $pipelinesDir: '%pipelines_dir%'
+
+    App\Application\Port\PipelineEventRepositoryPort:
+        class: App\Infrastructure\Persistence\Doctrine\DoctrinePipelineEventRepository
+
+    App\Application\Port\ApprovalRecordRepositoryPort:
+        class: App\Infrastructure\Persistence\Doctrine\DoctrineApprovalRecordRepository
+
+    App\Application\Port\NotificationPort:
+        class: App\Infrastructure\Notification\CompositeNotificationAdapter
+
+    App\Infrastructure\Http\Controller\GithubWebhookController:
+        arguments:
+            $webhookSecret: '%env(GITHUB_WEBHOOK_SECRET)%'
+
+    App\Infrastructure\Http\EventListener\ApiKeyListener:
+        arguments:
+            $apiKeyRequired: '%env(bool:API_KEY_REQUIRED)%'

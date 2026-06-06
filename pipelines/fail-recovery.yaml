@@ -1,0 +1,34 @@
+name: Failure & Recovery Pipeline
+
+jobs:
+  flaky-test:
+    image: alpine:3.19
+    script: |
+      echo "Flaky job — may need retries"
+      exit 0
+    retry:
+      max: 3
+      delay: 2
+
+  optional-lint:
+    needs: flaky-test
+    image: alpine:3.19
+    script: |
+      echo "This lint step is optional"
+      exit 1
+    continue_on_error: true
+
+  required-build:
+    needs: flaky-test
+    image: alpine:3.19
+    script: echo "Build succeeded"
+    timeout: 15
+
+  gate:
+    needs: [optional-lint, required-build]
+    type: approval
+
+  deploy:
+    needs: gate
+    image: alpine:3.19
+    script: echo "Deploying despite optional failures"

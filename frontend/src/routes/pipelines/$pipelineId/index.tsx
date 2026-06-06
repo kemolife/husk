@@ -79,6 +79,7 @@ function PipelineDetailPage() {
                 pipelineId: run.pipeline_id,
                 status: run.status,
                 environment: run.environment,
+                jobs: run.jobs,
               }}
             />
           ))}

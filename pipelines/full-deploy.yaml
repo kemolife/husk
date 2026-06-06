@@ -1,0 +1,62 @@
+name: Full Deployment Pipeline
+
+jobs:
+  install:
+    image: composer:2
+    script: composer --version
+
+  unit-tests:
+    needs: install
+    image: alpine:3.19
+    script: echo "Unit tests passed"
+    retry:
+      max: 3
+      delay: 2
+
+  integration-tests:
+    needs: install
+    image: alpine:3.19
+    script: echo "Integration tests passed"
+    timeout: 60
+    continue_on_error: true
+
+  security-scan:
+    needs: install
+    image: alpine:3.19
+    script: echo "No vulnerabilities found"
+    continue_on_error: true
+
+  build-image:
+    needs: [unit-tests, integration-tests, security-scan]
+    image: alpine:3.19
+    script: echo "Docker image built and pushed"
+
+  deploy-staging:
+    needs: build-image
+    if: environment == staging
+    image: alpine:3.19
+    script: echo "Deployed to staging"
+
+  smoke-test-staging:
+    needs: deploy-staging
+    if: environment == staging
+    image: alpine:3.19
+    script: echo "Staging smoke tests passed"
+    retry:
+      max: 3
+      delay: 5
+
+  approve-production:
+    needs: smoke-test-staging
+    type: approval
+
+  deploy-production:
+    needs: approve-production
+    if: environment == production
+    image: alpine:3.19
+    script: echo "Deployed to production"
+
+  notify-success:
+    needs: deploy-production
+    image: alpine:3.19
+    script: echo "Team notified of successful deployment"

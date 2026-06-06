@@ -4,6 +4,9 @@ namespace App\Tests\Application;
 
 use App\Application\Command\ApprovePipelineJob\ApprovePipelineJobCommand;
 use App\Application\Command\ApprovePipelineJob\ApprovePipelineJobHandler;
+use App\Application\Port\ApprovalRecordRepositoryPort;
+use App\Application\Port\NotificationPort;
+use App\Application\Port\PipelineEventRepositoryPort;
 use App\Application\Port\PipelineRepositoryPort;
 use App\Domain\Pipeline\Job;
 use App\Domain\Pipeline\JobType;
@@ -36,7 +39,7 @@ class ApprovePipelineJobHandlerTest extends TestCase
         $runRepo->save($run);
 
         $pipelineRepo = $this->createConfiguredStub(PipelineRepositoryPort::class, ['findById' => $pipeline]);
-        $handler = new ApprovePipelineJobHandler($pipelineRepo, $runRepo, new MessageBus([]));
+        $handler = new ApprovePipelineJobHandler($pipelineRepo, $runRepo, new MessageBus([]), $this->createStub(ApprovalRecordRepositoryPort::class), $this->createStub(PipelineEventRepositoryPort::class), $this->createStub(NotificationPort::class));
         $handler(new ApprovePipelineJobCommand($run->id()->value, 'gate', true));
 
         $updated = $runRepo->findById($run->id());
@@ -59,7 +62,7 @@ class ApprovePipelineJobHandlerTest extends TestCase
         $runRepo->save($run);
 
         $pipelineRepo = $this->createConfiguredStub(PipelineRepositoryPort::class, ['findById' => $pipeline]);
-        $handler = new ApprovePipelineJobHandler($pipelineRepo, $runRepo, new MessageBus([]));
+        $handler = new ApprovePipelineJobHandler($pipelineRepo, $runRepo, new MessageBus([]), $this->createStub(ApprovalRecordRepositoryPort::class), $this->createStub(PipelineEventRepositoryPort::class), $this->createStub(NotificationPort::class));
         $handler(new ApprovePipelineJobCommand($run->id()->value, 'gate', false));
 
         $updated = $runRepo->findById($run->id());

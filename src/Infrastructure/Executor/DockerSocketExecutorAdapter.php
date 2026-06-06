@@ -4,12 +4,16 @@ namespace App\Infrastructure\Executor;
 
 use App\Application\Port\ExecutorPort;
 use App\Application\Port\JobResult;
+use App\Application\Port\SecretRepositoryPort;
 use App\Domain\Pipeline\Job;
 use App\Domain\Shared\Environment;
 
 class DockerSocketExecutorAdapter implements ExecutorPort
 {
-    public function __construct(private readonly string $socketPath = '/var/run/docker.sock') {}
+    public function __construct(
+        private readonly string $socketPath = '/var/run/docker.sock',
+        private readonly ?SecretRepositoryPort $secretRepo = null,
+    ) {}
 
     public function run(Job $job, Environment $environment, string $runId): JobResult
     {
@@ -22,7 +26,7 @@ class DockerSocketExecutorAdapter implements ExecutorPort
             $this->pullImage($image);
             $containerId = $this->createContainer($job, $image, $volumeName, $environment);
             $this->startContainer($containerId);
-            $exitCode = $this->waitContainer($containerId);
+            $exitCode = $this->waitContainer($containerId, $job->timeoutSeconds);
             $output = "Pulling image: {$image}\n---\n" . $this->getLogs($containerId);
             $this->removeContainer($containerId);
 
@@ -67,10 +71,19 @@ class DockerSocketExecutorAdapter implements ExecutorPort
 
     private function createContainer(Job $job, string $image, string $volumeName, Environment $environment): string
     {
+        $env = ["PIPELINE_ENV={$environment->value}"];
+
+        foreach ($job->secretNames as $secretName) {
+            $value = $this->secretRepo?->get($secretName);
+            if ($value !== null) {
+                $env[] = "{$secretName}={$value}";
+            }
+        }
+
         $r = $this->request('POST', '/containers/create', [
             'Image' => $image,
             'Cmd' => ['/bin/sh', '-c', $job->script ?? 'true'],
-            'Env' => ["PIPELINE_ENV={$environment->value}"],
+            'Env' => $env,
             'WorkingDir' => '/workspace',
             'HostConfig' => [
                 'Binds' => ["{$volumeName}:/workspace"],
@@ -97,10 +110,63 @@ class DockerSocketExecutorAdapter implements ExecutorPort
         }
     }
 
-    private function waitContainer(string $id): int
+    private function waitContainer(string $id, ?int $timeoutSeconds): int
     {
-        $r = $this->request('POST', "/containers/{$id}/wait");
-        $data = json_decode($r['body'], true, 512, JSON_THROW_ON_ERROR);
+        $socketTimeout = $timeoutSeconds ?? 3600;
+
+        $socket = stream_socket_client(
+            'unix://' . $this->socketPath,
+            $errno,
+            $errstr,
+            30,
+            STREAM_CLIENT_CONNECT,
+        );
+
+        if ($socket === false) {
+            throw new \RuntimeException("Docker socket connect failed: {$errstr} ({$errno})");
+        }
+
+        stream_set_timeout($socket, $socketTimeout);
+
+        $path = "/containers/{$id}/wait";
+        $headers = implode("\r\n", [
+            "POST {$path} HTTP/1.1",
+            'Host: localhost',
+            'Content-Type: application/json',
+            'Content-Length: 0',
+            'Connection: close',
+        ]);
+        fwrite($socket, $headers . "\r\n\r\n");
+
+        $raw = '';
+        $timedOut = false;
+        while (!feof($socket)) {
+            $chunk = fread($socket, 65536);
+            $meta = stream_get_meta_data($socket);
+            if ($meta['timed_out']) {
+                $timedOut = true;
+                break;
+            }
+            if ($chunk !== false) {
+                $raw .= $chunk;
+            }
+        }
+        fclose($socket);
+
+        if ($timedOut) {
+            try { $this->request('POST', "/containers/{$id}/kill"); } catch (\Throwable) {}
+            return 1;
+        }
+
+        if (!str_contains($raw, "\r\n\r\n")) {
+            return 1;
+        }
+
+        [, $responseBody] = explode("\r\n\r\n", $raw, 2);
+        if (stripos(substr($raw, 0, strpos($raw, "\r\n\r\n")), 'Transfer-Encoding: chunked') !== false) {
+            $responseBody = $this->decodeChunked($responseBody);
+        }
+        $data = json_decode($responseBody, true, 512, JSON_THROW_ON_ERROR);
         return $data['StatusCode'] ?? 1;
     }
 

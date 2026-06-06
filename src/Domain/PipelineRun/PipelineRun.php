@@ -43,9 +43,17 @@ class PipelineRun
         $this->jobRuns = new ArrayCollection();
 
         foreach ($pipeline->jobs() as $job) {
-            $jobRun = new JobRun(Uuid::v4()->toRfc4122(), $job->id, $job->type);
-            $jobRun->setPipelineRun($this);
-            $this->jobRuns->add($jobRun);
+            if ($job->matrix !== null) {
+                foreach ($job->matrix->combinations() as $combo) {
+                    $jobRun = new JobRun(Uuid::v4()->toRfc4122(), $job->id, $job->type, $combo);
+                    $jobRun->setPipelineRun($this);
+                    $this->jobRuns->add($jobRun);
+                }
+            } else {
+                $jobRun = new JobRun(Uuid::v4()->toRfc4122(), $job->id, $job->type);
+                $jobRun->setPipelineRun($this);
+                $this->jobRuns->add($jobRun);
+            }
         }
     }
 
@@ -53,6 +61,7 @@ class PipelineRun
     public function pipelineId(): string { return $this->pipelineId; }
     public function status(): PipelineRunStatus { return $this->status; }
     public function environment(): Environment { return $this->environment; }
+    public function createdAt(): \DateTimeImmutable { return $this->createdAt; }
 
     /** @return JobRun[] */
     public function jobRuns(): array { return $this->jobRuns->toArray(); }
@@ -65,6 +74,16 @@ class PipelineRun
             }
         }
         throw new \InvalidArgumentException("JobRun for job '{$jobId}' not found");
+    }
+
+    public function jobRunById(string $id): JobRun
+    {
+        foreach ($this->jobRuns as $jr) {
+            if ($jr->id() === $id) {
+                return $jr;
+            }
+        }
+        throw new \InvalidArgumentException("JobRun '{$id}' not found");
     }
 
     /** @return JobRun[] */
@@ -84,7 +103,7 @@ class PipelineRun
                 continue;
             }
 
-            if ($this->allNeedsSatisfied($job->needs)) {
+            if ($this->allNeedsSatisfied($job->needs, $pipeline)) {
                 $ready[] = $jr;
             }
         }
@@ -147,12 +166,21 @@ class PipelineRun
         return true;
     }
 
-    /** @param string[] $needs */
+    /**
+     * @param string[] $needs
+     * All matrix variants of a needed job must be SKIPPED for the need to be considered skipped.
+     */
     private function anyNeedsSkipped(array $needs): bool
     {
         foreach ($needs as $neededJobId) {
-            foreach ($this->jobRuns as $jr) {
-                if ($jr->jobId() === $neededJobId && $jr->status() === JobRunStatus::SKIPPED) {
+            $variants = array_filter(
+                $this->jobRuns->toArray(),
+                fn(JobRun $jr) => $jr->jobId() === $neededJobId,
+            );
+
+            if (!empty($variants)) {
+                $allSkipped = count(array_filter($variants, fn(JobRun $jr) => $jr->status() === JobRunStatus::SKIPPED)) === count($variants);
+                if ($allSkipped) {
                     return true;
                 }
             }
@@ -160,18 +188,30 @@ class PipelineRun
         return false;
     }
 
-    /** @param string[] $needs */
-    private function allNeedsSatisfied(array $needs): bool
+    /**
+     * @param string[] $needs
+     * All matrix variants of each needed job must be satisfied (SUCCESS, or FAILED+continueOnError).
+     */
+    private function allNeedsSatisfied(array $needs, Pipeline $pipeline): bool
     {
         foreach ($needs as $neededJobId) {
-            $satisfied = false;
-            foreach ($this->jobRuns as $jr) {
-                if ($jr->jobId() === $neededJobId && $jr->status() === JobRunStatus::SUCCESS) {
-                    $satisfied = true;
-                    break;
-                }
+            $variants = array_filter(
+                $this->jobRuns->toArray(),
+                fn(JobRun $jr) => $jr->jobId() === $neededJobId,
+            );
+
+            if (empty($variants)) {
+                return false;
             }
-            if (!$satisfied) {
+
+            $job = $pipeline->job($neededJobId);
+            foreach ($variants as $jr) {
+                if ($jr->status() === JobRunStatus::SUCCESS) {
+                    continue;
+                }
+                if ($jr->status() === JobRunStatus::FAILED && $job->continueOnError) {
+                    continue;
+                }
                 return false;
             }
         }

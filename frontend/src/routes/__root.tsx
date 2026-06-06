@@ -49,6 +49,9 @@ function RootLayout() {
           <Link to="/runs" className="text-gray-400 hover:text-gray-200 text-sm">
             All runs
           </Link>
+          <Link to="/playground" className="text-gray-400 hover:text-gray-200 text-sm">
+            Playground
+          </Link>
         </div>
       </nav>
       <main className="flex-1">

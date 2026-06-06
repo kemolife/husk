@@ -4,6 +4,8 @@ namespace App\Tests\Application;
 
 use App\Application\Command\ExecuteJob\ExecuteJobCommand;
 use App\Application\Command\ExecuteJob\ExecuteJobHandler;
+use App\Application\Port\NotificationPort;
+use App\Application\Port\PipelineEventRepositoryPort;
 use App\Application\Port\PipelineRepositoryPort;
 use App\Domain\Pipeline\Job;
 use App\Domain\Pipeline\JobType;
@@ -52,7 +54,7 @@ class ExecuteJobHandlerTest extends TestCase
 
         $pipelineRepo = $this->createConfiguredStub(PipelineRepositoryPort::class, ['findById' => $pipeline]);
 
-        $handler = new ExecuteJobHandler($pipelineRepo, $this->runRepo, $this->executor, $this->bus);
+        $handler = new ExecuteJobHandler($pipelineRepo, $this->runRepo, $this->executor, $this->bus, $this->createStub(PipelineEventRepositoryPort::class), $this->createStub(NotificationPort::class));
         $handler(new ExecuteJobCommand($run->id()->value, 'build'));
 
         $updated = $this->runRepo->findById($run->id());
@@ -71,7 +73,7 @@ class ExecuteJobHandlerTest extends TestCase
 
         $pipelineRepo = $this->createConfiguredStub(PipelineRepositoryPort::class, ['findById' => $pipeline]);
 
-        $handler = new ExecuteJobHandler($pipelineRepo, $this->runRepo, $this->executor, $this->bus);
+        $handler = new ExecuteJobHandler($pipelineRepo, $this->runRepo, $this->executor, $this->bus, $this->createStub(PipelineEventRepositoryPort::class), $this->createStub(NotificationPort::class));
         $handler(new ExecuteJobCommand($run->id()->value, 'gate'));
 
         $updated = $this->runRepo->findById($run->id());

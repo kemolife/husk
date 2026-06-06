@@ -6,6 +6,9 @@ use App\Application\Port\PipelineRunRepositoryPort;
 use App\Domain\PipelineRun\PipelineRun;
 use App\Domain\PipelineRun\PipelineRunId;
 use App\Domain\PipelineRun\PipelineRunNotFoundException;
+use App\Domain\PipelineRun\PipelineRunStatus;
+use App\Domain\Shared\Environment;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 
 class DoctrinePipelineRunRepository implements PipelineRunRepositoryPort
@@ -40,5 +43,35 @@ class DoctrinePipelineRunRepository implements PipelineRunRepositoryPort
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+    }
+
+    public function findLastSuccess(string $pipelineId, Environment $env): ?PipelineRun
+    {
+        return $this->em->createQueryBuilder()
+            ->select('r')
+            ->from(PipelineRun::class, 'r')
+            ->where('r.pipelineId = :pipelineId')
+            ->andWhere('r.environment = :env')
+            ->andWhere('r.status = :status')
+            ->setParameter('pipelineId', $pipelineId)
+            ->setParameter('env', $env->value)
+            ->setParameter('status', PipelineRunStatus::SUCCESS->value)
+            ->orderBy('r.createdAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function withLock(PipelineRunId $id, callable $fn): mixed
+    {
+        return $this->em->wrapInTransaction(function () use ($id, $fn) {
+            $run = $this->em->find(PipelineRun::class, $id->value, LockMode::PESSIMISTIC_WRITE);
+
+            if ($run === null) {
+                throw PipelineRunNotFoundException::forId($id->value);
+            }
+
+            return $fn($run);
+        });
     }
 }

@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RunsIndexRouteImport } from './routes/runs/index'
 import { Route as PipelinesIndexRouteImport } from './routes/pipelines/index'
 import { Route as PipelinesPipelineIdIndexRouteImport } from './routes/pipelines/$pipelineId/index'
 import { Route as PipelinesPipelineIdRunsRunIdRouteImport } from './routes/pipelines/$pipelineId/runs/$runId'
 
+const PlaygroundRoute = PlaygroundRouteImport.update({
+  id: '/playground',
+  path: '/playground',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -45,6 +51,7 @@ const PipelinesPipelineIdRunsRunIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/playground': typeof PlaygroundRoute
   '/pipelines/': typeof PipelinesIndexRoute
   '/runs/': typeof RunsIndexRoute
   '/pipelines/$pipelineId/': typeof PipelinesPipelineIdIndexRoute
@@ -52,6 +59,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/playground': typeof PlaygroundRoute
   '/pipelines': typeof PipelinesIndexRoute
   '/runs': typeof RunsIndexRoute
   '/pipelines/$pipelineId': typeof PipelinesPipelineIdIndexRoute
@@ -60,6 +68,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/playground': typeof PlaygroundRoute
   '/pipelines/': typeof PipelinesIndexRoute
   '/runs/': typeof RunsIndexRoute
   '/pipelines/$pipelineId/': typeof PipelinesPipelineIdIndexRoute
@@ -69,6 +78,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/playground'
     | '/pipelines/'
     | '/runs/'
     | '/pipelines/$pipelineId/'
@@ -76,6 +86,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/playground'
     | '/pipelines'
     | '/runs'
     | '/pipelines/$pipelineId'
@@ -83,6 +94,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/playground'
     | '/pipelines/'
     | '/runs/'
     | '/pipelines/$pipelineId/'
@@ -91,6 +103,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PlaygroundRoute: typeof PlaygroundRoute
   PipelinesIndexRoute: typeof PipelinesIndexRoute
   RunsIndexRoute: typeof RunsIndexRoute
   PipelinesPipelineIdIndexRoute: typeof PipelinesPipelineIdIndexRoute
@@ -99,6 +112,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/playground': {
+      id: '/playground'
+      path: '/playground'
+      fullPath: '/playground'
+      preLoaderRoute: typeof PlaygroundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -139,6 +159,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PlaygroundRoute: PlaygroundRoute,
   PipelinesIndexRoute: PipelinesIndexRoute,
   RunsIndexRoute: RunsIndexRoute,
   PipelinesPipelineIdIndexRoute: PipelinesPipelineIdIndexRoute,

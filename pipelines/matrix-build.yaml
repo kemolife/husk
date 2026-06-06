@@ -1,0 +1,30 @@
+name: Matrix Build Pipeline
+
+jobs:
+  test:
+    image: alpine:3.19
+    script: echo "Testing node=${{ matrix.node }} os=${{ matrix.os }}"
+    matrix:
+      node: ["18", "20", "22"]
+      os: ["linux", "alpine"]
+    retry:
+      max: 2
+      delay: 1
+    timeout: 30
+
+  lint:
+    needs: test
+    image: alpine:3.19
+    script: echo "Lint passed"
+    continue_on_error: true
+
+  coverage:
+    needs: test
+    image: alpine:3.19
+    script: echo "Coverage OK"
+    timeout: 20
+
+  publish:
+    needs: [lint, coverage]
+    image: alpine:3.19
+    script: echo "Published"

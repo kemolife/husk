@@ -17,8 +17,8 @@ export function JobGraph({ jobs, selectedJobId, onSelectJob }: Props) {
         <Fragment key={job.id}>
           <JobNode
             job={job}
-            isSelected={selectedJobId === job.job_id}
-            onSelect={() => onSelectJob(job.job_id)}
+            isSelected={selectedJobId === job.id}
+            onSelect={() => onSelectJob(job.id)}
           />
           {/* SVG connector line between nodes */}
           {index < visible.length - 1 && (

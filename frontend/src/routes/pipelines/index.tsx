@@ -31,6 +31,7 @@ function PipelinesIndexPage() {
   const { data: pipelines = [], isLoading } = useQuery({
     queryKey: ['pipelines'],
     queryFn: fetchPipelines,
+    refetchInterval: 5000,
   })
 
   return (
@@ -48,7 +49,14 @@ function PipelinesIndexPage() {
       ) : (
         <div>
           {pipelines.map((p) => (
-            <PipelineRow key={p.id} pipeline={{ id: p.id, name: p.name }} />
+            <PipelineRow
+              key={p.id}
+              pipeline={{
+                id: p.id,
+                name: p.name,
+                lastRun: p.last_run,
+              }}
+            />
           ))}
         </div>
       )}

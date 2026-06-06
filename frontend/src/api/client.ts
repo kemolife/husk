@@ -1,6 +1,6 @@
 import type { PipelineRunStatus, JobRunStatus, Environment } from '../lib/constants'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export interface JobRun {
   id: string
@@ -76,9 +76,16 @@ export const rejectJob = (runId: string, jobId: string): Promise<ApproveResponse
 export const fetchPipelineRuns = (pipelineId: string): Promise<PipelineRun[]> =>
   apiFetch(`/pipeline-runs?pipeline_id=${encodeURIComponent(pipelineId)}`)
 
+export interface PipelineLastRun {
+  id: string
+  status: PipelineRunStatus
+  jobs: Array<{ job_id: string; status: JobRunStatus }>
+}
+
 export interface Pipeline {
   id: string
   name: string
+  last_run?: PipelineLastRun
 }
 
 export const fetchPipelines = (): Promise<Pipeline[]> =>
