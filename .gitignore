@@ -11,8 +11,15 @@
 
 # Docker
 docker-compose.override.yml
+compose.override.yaml
+
+# PHPUnit
+.phpunit.result.cache
 
 ###> phpunit/phpunit ###
 /phpunit.xml
 /.phpunit.cache/
 ###< phpunit/phpunit ###
+
+# Claude Code
+.claude/worktrees/
