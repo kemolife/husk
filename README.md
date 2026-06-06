@@ -1,8 +1,8 @@
-# Conveyor
+# Husk
 
-A self-hosted pipeline orchestrator that runs **any Linux command in an isolated Docker container**. Define a pipeline in YAML, trigger it, and watch jobs execute as a DAG with real-time status, log capture, and manual approval gates.
+A self-hosted pipeline orchestrator that runs **any Linux command in a disposable Docker container**. Define a pipeline in YAML, trigger it, and watch jobs execute as a DAG with real-time status, log capture, and manual approval gates.
 
-Think of it as a general-purpose job runner — closer to AWS Batch + Step Functions than a git-bound CI tool. Each job picks its own image; the workspace volume is shared across the run so jobs can pass artifacts along.
+The name says it: each job runs inside a **husk** — a throwaway container that wraps the work, then is discarded once the job finishes. Think general-purpose job runner, closer to AWS Batch + Step Functions than a git-bound CI tool. Each job picks its own image; the workspace volume is shared across the run so jobs can pass artifacts along.
 
 ```
 ┌──────────┐    ┌──────────┐    ┌──────────┐
