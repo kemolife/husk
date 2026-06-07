@@ -65,6 +65,12 @@ class DoctrinePipelineRunRepository implements PipelineRunRepositoryPort
     public function withLock(PipelineRunId $id, callable $fn): mixed
     {
         return $this->em->wrapInTransaction(function () use ($id, $fn) {
+            // Clear identity map so the FOR UPDATE fetch reads current DB state, not
+            // a stale snapshot loaded earlier in Phase 1 of the same worker process.
+            // Without this, parallel workers (e.g. unit-test + lint) each see the
+            // other job as still RUNNING and never dispatch the downstream job.
+            $this->em->clear();
+
             $run = $this->em->find(PipelineRun::class, $id->value, LockMode::PESSIMISTIC_WRITE);
 
             if ($run === null) {

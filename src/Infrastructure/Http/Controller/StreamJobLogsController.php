@@ -5,6 +5,7 @@ namespace App\Infrastructure\Http\Controller;
 use App\Application\Port\PipelineRunRepositoryPort;
 use App\Domain\PipelineRun\PipelineRunId;
 use App\Domain\PipelineRun\PipelineRunNotFoundException;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -17,22 +18,21 @@ class StreamJobLogsController
 {
     public function __construct(
         private readonly PipelineRunRepositoryPort $runRepo,
+        private readonly EntityManagerInterface $em,
         private readonly string $logDir = '/tmp/husk-logs',
     ) {}
 
     public function __invoke(string $runId, string $jobRunId): StreamedResponse
     {
         $response = new StreamedResponse(function () use ($runId, $jobRunId) {
-            // Log file written by DockerSocketExecutorAdapter during execution
-            // File name uses pipelineRunId (same as $runId passed to executor)
-            // We search for any log file that matches the job run ID as well
-            $logFile = $this->resolveLogFile($runId, $jobRunId);
-
             $sentLength = 0;
             $maxIterations = 300;
             $iteration = 0;
 
             while ($iteration < $maxIterations) {
+                // Resolve each iteration so we pick up the file once the executor creates it
+                $logFile = $this->resolveLogFile($runId, $jobRunId);
+
                 // Emit any new lines from file
                 if ($logFile !== null && file_exists($logFile)) {
                     $content = file_get_contents($logFile);
@@ -49,8 +49,10 @@ class StreamJobLogsController
                     }
                 }
 
-                // Check DB for terminal status
+                // Check DB for terminal status — clear identity map first so each
+                // iteration reads current state, not the first-request snapshot.
                 try {
+                    $this->em->clear();
                     $run = $this->runRepo->findById(new PipelineRunId($runId));
                     $jobRun = $run->jobRunById($jobRunId);
                 } catch (PipelineRunNotFoundException|\InvalidArgumentException) {
