@@ -14,6 +14,7 @@ export function RunHeader({ run, pipelineId }: Props) {
   const [elapsed, setElapsed] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isTerminal = (TERMINAL_STATUSES as readonly string[]).includes(run.status)
+  const ctx = run.trigger_context
 
   useEffect(() => {
     if (isTerminal) {
@@ -28,7 +29,7 @@ export function RunHeader({ run, pipelineId }: Props) {
 
   return (
     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-3 min-w-0 flex-wrap">
         <Link
           to="/pipelines/$pipelineId"
           params={{ pipelineId }}
@@ -42,6 +43,19 @@ export function RunHeader({ run, pipelineId }: Props) {
         <span className="text-xs text-gray-500 capitalize border border-gray-700 rounded px-1.5 py-0.5">
           {run.environment}
         </span>
+        {ctx?.branch && (
+          <span className="text-xs text-blue-400 font-mono bg-blue-950/40 border border-blue-800/50 rounded px-1.5 py-0.5">
+            {ctx.branch}
+          </span>
+        )}
+        {ctx?.commitSha && (
+          <span className="text-xs text-gray-500 font-mono" title={ctx.commitSha}>
+            {ctx.commitSha.slice(0, 7)}
+          </span>
+        )}
+        {ctx?.actor && (
+          <span className="text-xs text-gray-500">by {ctx.actor}</span>
+        )}
       </div>
       <div className="flex items-center gap-3 shrink-0">
         {!isTerminal && (

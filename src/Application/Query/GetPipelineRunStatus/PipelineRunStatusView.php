@@ -11,5 +11,6 @@ final readonly class PipelineRunStatusView
         public string $status,
         public string $environment,
         public array $jobs,
+        public ?array $triggerContext = null,
     ) {}
 }

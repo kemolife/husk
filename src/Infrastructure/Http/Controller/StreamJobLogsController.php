@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route(
-    '/pipeline-runs/{runId}/jobs/{jobId}/logs/stream',
+    '/pipeline-runs/{runId}/jobs/{jobRunId}/logs/stream',
     name: 'stream_job_logs',
     methods: ['GET'],
 )]
@@ -17,9 +17,9 @@ class StreamJobLogsController
 {
     public function __construct(private readonly PipelineRunRepositoryPort $runRepo) {}
 
-    public function __invoke(string $runId, string $jobId): StreamedResponse
+    public function __invoke(string $runId, string $jobRunId): StreamedResponse
     {
-        $response = new StreamedResponse(function () use ($runId, $jobId) {
+        $response = new StreamedResponse(function () use ($runId, $jobRunId) {
             $sentLength = 0;
             $maxIterations = 300;
             $iteration = 0;
@@ -27,7 +27,7 @@ class StreamJobLogsController
             while ($iteration < $maxIterations) {
                 try {
                     $run = $this->runRepo->findById(new PipelineRunId($runId));
-                    $jobRun = $run->jobRunByJobId($jobId);
+                    $jobRun = $run->jobRunById($jobRunId);
                 } catch (PipelineRunNotFoundException|\InvalidArgumentException) {
                     echo "event: error\ndata: " . json_encode(['message' => 'not found'], JSON_THROW_ON_ERROR) . "\n\n";
                     ob_flush();
@@ -40,7 +40,9 @@ class StreamJobLogsController
                     $newChunk = substr($output, $sentLength);
                     $sentLength = strlen($output);
                     foreach (explode("\n", $newChunk) as $line) {
-                        echo 'data: ' . json_encode(['line' => $line], JSON_THROW_ON_ERROR) . "\n\n";
+                        if ($line !== '') {
+                            echo 'data: ' . json_encode(['line' => $line], JSON_THROW_ON_ERROR) . "\n\n";
+                        }
                     }
                     ob_flush();
                     flush();

@@ -91,7 +91,9 @@ class YamlFilePipelineRepository implements PipelineRepositoryPort
             );
         }
 
-        return new Pipeline(new PipelineId($id), $data['name'] ?? $id, $jobs, $notifications, $schedules);
+        $pushBranches = (array) ($data['on']['push']['branches'] ?? []);
+
+        return new Pipeline(new PipelineId($id), $data['name'] ?? $id, $jobs, $notifications, $schedules, $pushBranches);
     }
 
     /** @return Pipeline[] */

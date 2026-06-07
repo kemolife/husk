@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { usePipelineRun } from '../../../../features/pipeline-runs/hooks/usePipelineRun'
+import { useLogStream } from '../../../../features/pipeline-runs/hooks/useLogStream'
 import { RunHeader } from '../../../../features/pipeline-runs/components/RunHeader'
 import { JobGraph } from '../../../../features/pipeline-runs/components/JobGraph'
 import { LogPanel } from '../../../../features/pipeline-runs/components/LogPanel'
@@ -24,6 +25,12 @@ function RunDetailPage() {
     const failed = run.jobs.find((j) => j.status === 'failed')
     if (failed) setSelectedJobId(failed.id)
   }, [run, selectedJobId])
+
+  const selectedJob = run?.jobs.find((j) => j.id === selectedJobId)
+  const isSelectedRunning = selectedJob?.status === 'running'
+
+  // SSE stream — active only when selected job is running
+  const streamLines = useLogStream(runId, selectedJobId ?? '', isSelectedRunning)
 
   if (isLoading) {
     return (
@@ -70,12 +77,12 @@ function RunDetailPage() {
 
   if (!run) return null
 
-  const selectedJob = run.jobs.find((j) => j.id === selectedJobId)
-  // TODO: replace with real output once backend persists job logs (iteration 2)
-  const logLines = selectedJob?.output
+  const logLines = isSelectedRunning
+    ? streamLines
+    : selectedJob?.output
     ? selectedJob.output.split('\n').filter(Boolean)
     : selectedJob
-    ? [`[${selectedJob.status}] ${selectedJob.job_id} — log output not yet captured by backend`]
+    ? [`[${selectedJob.status}] ${selectedJob.job_id} — no output captured`]
     : []
 
   return (
@@ -98,7 +105,7 @@ function RunDetailPage() {
             lines={logLines}
             status={selectedJob?.status}
             jobId={selectedJob?.job_id}
-            mode="snapshot"
+            mode={isSelectedRunning ? 'stream' : 'snapshot'}
           />
         </div>
       </div>

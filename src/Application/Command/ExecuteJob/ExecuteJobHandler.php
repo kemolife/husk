@@ -89,7 +89,9 @@ class ExecuteJobHandler
         // same pipeline run serialize here and each sees the other's completed jobs.
         $runId = new PipelineRunId($command->pipelineRunId);
         $runCompleted = $this->runRepo->withLock($runId, function (PipelineRun $freshRun) use ($command, $result, $pipeline, $job, $startedAt, $finishedAt) {
-            $freshJobRun = $freshRun->jobRunById($command->jobRunId);
+            $freshJobRun = $command->jobRunId !== null
+                ? $freshRun->jobRunById($command->jobRunId)
+                : $freshRun->jobRunByJobId($command->jobId);
             $freshJobRun->recordExecution($result->output, $startedAt, $finishedAt);
 
             if ($result->isSuccess()) {

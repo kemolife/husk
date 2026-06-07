@@ -3,6 +3,7 @@
 namespace App\Domain\PipelineRun;
 
 use App\Domain\Pipeline\Pipeline;
+use App\Domain\Pipeline\TriggerContext;
 use App\Domain\Shared\Environment;
 use App\Domain\Shared\InvalidStatusTransitionException;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -30,16 +31,20 @@ class PipelineRun
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $triggerContextData = null;
+
     #[ORM\OneToMany(targetEntity: JobRun::class, mappedBy: 'pipelineRun', cascade: ['persist', 'remove'])]
     private Collection $jobRuns;
 
-    public function __construct(PipelineRunId $id, Pipeline $pipeline, Environment $environment)
+    public function __construct(PipelineRunId $id, Pipeline $pipeline, Environment $environment, ?TriggerContext $triggerContext = null)
     {
         $this->id = $id->value;
         $this->pipelineId = $pipeline->id()->value;
         $this->environment = $environment;
         $this->status = PipelineRunStatus::PENDING;
         $this->createdAt = new \DateTimeImmutable();
+        $this->triggerContextData = $triggerContext?->toArray();
         $this->jobRuns = new ArrayCollection();
 
         foreach ($pipeline->jobs() as $job) {
@@ -62,6 +67,10 @@ class PipelineRun
     public function status(): PipelineRunStatus { return $this->status; }
     public function environment(): Environment { return $this->environment; }
     public function createdAt(): \DateTimeImmutable { return $this->createdAt; }
+    public function triggerContext(): ?TriggerContext
+    {
+        return $this->triggerContextData !== null ? TriggerContext::fromArray($this->triggerContextData) : null;
+    }
 
     /** @return JobRun[] */
     public function jobRuns(): array { return $this->jobRuns->toArray(); }

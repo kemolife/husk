@@ -7,6 +7,7 @@ final class Pipeline
     /**
      * @param Job[] $jobs
      * @param Schedule[] $schedules
+     * @param string[] $pushBranches
      */
     public function __construct(
         private readonly PipelineId $id,
@@ -14,6 +15,7 @@ final class Pipeline
         private readonly array $jobs,
         private readonly ?NotificationConfig $notifications = null,
         private readonly array $schedules = [],
+        private readonly array $pushBranches = [],
     ) {}
 
     public function id(): PipelineId { return $this->id; }
@@ -23,6 +25,21 @@ final class Pipeline
     public function notifications(): ?NotificationConfig { return $this->notifications; }
     /** @return Schedule[] */
     public function schedules(): array { return $this->schedules; }
+    /** @return string[] */
+    public function pushBranches(): array { return $this->pushBranches; }
+
+    public function matchesPushBranch(string $branch): bool
+    {
+        if (empty($this->pushBranches)) {
+            return true;
+        }
+        foreach ($this->pushBranches as $pattern) {
+            if (fnmatch($pattern, $branch)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public function job(string $jobId): Job
     {

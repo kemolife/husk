@@ -8,5 +8,8 @@ final readonly class TriggerPipelineCommand
         public string $pipelineRunId,
         public string $pipelineId,
         public string $environment,
+        public ?string $branch = null,
+        public ?string $commitSha = null,
+        public ?string $actor = null,
     ) {}
 }

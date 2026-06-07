@@ -48,7 +48,7 @@ class GithubWebhookController
         }
 
         try {
-            $this->pipelineRepo->findById(new PipelineId($repoName));
+            $pipeline = $this->pipelineRepo->findById(new PipelineId($repoName));
         } catch (PipelineNotFoundException) {
             return new JsonResponse(['status' => 'no_pipeline', 'repo' => $repoName]);
         }
@@ -59,11 +59,30 @@ class GithubWebhookController
             default => '',
         };
 
+        if ($event === 'push' && !$pipeline->matchesPushBranch($branch)) {
+            return new JsonResponse(['status' => 'branch_not_matched', 'branch' => $branch, 'repo' => $repoName]);
+        }
+
+        $commitSha = match ($event) {
+            'push' => $payload['after'] ?? null,
+            'pull_request' => $payload['pull_request']['head']['sha'] ?? null,
+            default => null,
+        };
+
+        $actor = match ($event) {
+            'push' => $payload['pusher']['name'] ?? $payload['sender']['login'] ?? null,
+            'pull_request' => $payload['pull_request']['user']['login'] ?? $payload['sender']['login'] ?? null,
+            default => null,
+        };
+
         $runId = Uuid::v4()->toRfc4122();
         $this->bus->dispatch(new TriggerPipelineCommand(
             pipelineRunId: $runId,
             pipelineId: $repoName,
             environment: 'development',
+            branch: $branch ?: null,
+            commitSha: $commitSha,
+            actor: $actor,
         ));
 
         return new JsonResponse(['runId' => $runId, 'branch' => $branch, 'repo' => $repoName], 202);

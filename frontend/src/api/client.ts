@@ -11,12 +11,19 @@ export interface JobRun {
   finished_at?: string
 }
 
+export interface TriggerContext {
+  branch?: string
+  commitSha?: string
+  actor?: string
+}
+
 export interface PipelineRun {
   id: string
   pipeline_id: string
   status: PipelineRunStatus
   environment: Environment
   jobs: JobRun[]
+  trigger_context?: TriggerContext
 }
 
 export interface TriggerResponse {

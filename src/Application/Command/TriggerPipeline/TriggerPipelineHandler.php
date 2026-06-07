@@ -7,6 +7,7 @@ use App\Application\Port\PipelineEventRepositoryPort;
 use App\Application\Port\PipelineRepositoryPort;
 use App\Application\Port\PipelineRunRepositoryPort;
 use App\Domain\Pipeline\PipelineId;
+use App\Domain\Pipeline\TriggerContext;
 use App\Domain\PipelineRun\PipelineEvent;
 use App\Domain\PipelineRun\PipelineEventType;
 use App\Domain\PipelineRun\PipelineRun;
@@ -31,7 +32,12 @@ class TriggerPipelineHandler
         $pipeline = $this->pipelineRepo->findById(new PipelineId($command->pipelineId));
         $environment = Environment::fromString($command->environment);
 
-        $run = new PipelineRun(new PipelineRunId($command->pipelineRunId), $pipeline, $environment);
+        $triggerContext = null;
+        if ($command->branch !== null || $command->commitSha !== null || $command->actor !== null) {
+            $triggerContext = new TriggerContext($command->branch, $command->commitSha, $command->actor);
+        }
+
+        $run = new PipelineRun(new PipelineRunId($command->pipelineRunId), $pipeline, $environment, $triggerContext);
         $run->markAsRunning();
 
         $this->runRepo->save($run);

@@ -26,6 +26,7 @@ class GetPipelineRunStatusHandler
             $run->status()->value,
             $run->environment()->value,
             $jobs,
+            $run->triggerContext()?->toArray(),
         );
     }
 }
