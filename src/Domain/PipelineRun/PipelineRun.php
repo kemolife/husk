@@ -31,7 +31,7 @@ class PipelineRun
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
-    #[ORM\Column(type: 'json', nullable: true)]
+    #[ORM\Column(name: 'trigger_context', type: 'json', nullable: true)]
     private ?array $triggerContextData = null;
 
     #[ORM\OneToMany(targetEntity: JobRun::class, mappedBy: 'pipelineRun', cascade: ['persist', 'remove'])]
