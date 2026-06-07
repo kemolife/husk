@@ -15,16 +15,41 @@ use Symfony\Component\Routing\Attribute\Route;
 )]
 class StreamJobLogsController
 {
-    public function __construct(private readonly PipelineRunRepositoryPort $runRepo) {}
+    public function __construct(
+        private readonly PipelineRunRepositoryPort $runRepo,
+        private readonly string $logDir = '/tmp/husk-logs',
+    ) {}
 
     public function __invoke(string $runId, string $jobRunId): StreamedResponse
     {
         $response = new StreamedResponse(function () use ($runId, $jobRunId) {
+            // Log file written by DockerSocketExecutorAdapter during execution
+            // File name uses pipelineRunId (same as $runId passed to executor)
+            // We search for any log file that matches the job run ID as well
+            $logFile = $this->resolveLogFile($runId, $jobRunId);
+
             $sentLength = 0;
             $maxIterations = 300;
             $iteration = 0;
 
             while ($iteration < $maxIterations) {
+                // Emit any new lines from file
+                if ($logFile !== null && file_exists($logFile)) {
+                    $content = file_get_contents($logFile);
+                    if ($content !== false && strlen($content) > $sentLength) {
+                        $newChunk = substr($content, $sentLength);
+                        $sentLength = strlen($content);
+                        foreach (explode("\n", $newChunk) as $line) {
+                            if ($line !== '') {
+                                echo 'data: ' . json_encode(['line' => $line], JSON_THROW_ON_ERROR) . "\n\n";
+                            }
+                        }
+                        ob_flush();
+                        flush();
+                    }
+                }
+
+                // Check DB for terminal status
                 try {
                     $run = $this->runRepo->findById(new PipelineRunId($runId));
                     $jobRun = $run->jobRunById($jobRunId);
@@ -35,20 +60,22 @@ class StreamJobLogsController
                     break;
                 }
 
-                $output = $jobRun->output();
-                if ($output !== null && strlen($output) > $sentLength) {
-                    $newChunk = substr($output, $sentLength);
-                    $sentLength = strlen($output);
-                    foreach (explode("\n", $newChunk) as $line) {
-                        if ($line !== '') {
-                            echo 'data: ' . json_encode(['line' => $line], JSON_THROW_ON_ERROR) . "\n\n";
+                if ($jobRun->status()->isTerminal()) {
+                    // Fallback: emit from DB output if no log file was used
+                    if ($logFile === null || !file_exists($logFile)) {
+                        $dbOutput = $jobRun->output();
+                        if ($dbOutput !== null && strlen($dbOutput) > $sentLength) {
+                            $newChunk = substr($dbOutput, $sentLength);
+                            foreach (explode("\n", $newChunk) as $line) {
+                                if ($line !== '') {
+                                    echo 'data: ' . json_encode(['line' => $line], JSON_THROW_ON_ERROR) . "\n\n";
+                                }
+                            }
+                            ob_flush();
+                            flush();
                         }
                     }
-                    ob_flush();
-                    flush();
-                }
 
-                if ($jobRun->status()->isTerminal()) {
                     echo "event: done\ndata: " . json_encode(['status' => $jobRun->status()->value], JSON_THROW_ON_ERROR) . "\n\n";
                     ob_flush();
                     flush();
@@ -65,5 +92,33 @@ class StreamJobLogsController
         $response->headers->set('X-Accel-Buffering', 'no');
 
         return $response;
+    }
+
+    /**
+     * The log file is named by pipelineRunId (the runId passed to the executor).
+     * The SSE URL includes jobRunId (UUID of the specific JobRun).
+     * We need to find which pipelineRunId this jobRun belongs to — we already
+     * have $runId which IS the pipelineRunId, so the file is {logDir}/{runId}.log.
+     *
+     * For matrix jobs (multiple JobRuns per pipeline run), all variants share
+     * the same pipelineRunId-based log file, but only one is active at a time
+     * since jobs run sequentially within a run. Acceptable for v1.
+     */
+    private function resolveLogFile(string $runId, string $jobRunId): ?string
+    {
+        // Primary: file named by pipelineRunId (how the executor writes it)
+        $byRun = $this->logDir . '/' . $runId . '.log';
+        if (file_exists($byRun)) {
+            return $byRun;
+        }
+
+        // Secondary: file named by jobRunId (future per-job-run granularity)
+        $byJob = $this->logDir . '/' . $jobRunId . '.log';
+        if (file_exists($byJob)) {
+            return $byJob;
+        }
+
+        // No file yet — executor hasn't started or fallback to DB
+        return null;
     }
 }

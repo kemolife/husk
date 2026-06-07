@@ -13,6 +13,7 @@ class DockerSocketExecutorAdapter implements ExecutorPort
     public function __construct(
         private readonly string $socketPath = '/var/run/docker.sock',
         private readonly ?SecretRepositoryPort $secretRepo = null,
+        private readonly string $logDir = '/tmp/husk-logs',
     ) {}
 
     public function run(Job $job, Environment $environment, string $runId): JobResult
@@ -22,12 +23,18 @@ class DockerSocketExecutorAdapter implements ExecutorPort
         $containerId = null;
 
         try {
+            $this->ensureLogDir();
             $this->ensureVolume($volumeName);
             $this->pullImage($image);
             $containerId = $this->createContainer($job, $image, $volumeName, $environment);
             $this->startContainer($containerId);
-            $exitCode = $this->waitContainer($containerId, $job->timeoutSeconds);
-            $output = "Pulling image: {$image}\n---\n" . $this->getLogs($containerId);
+
+            // Stream logs to file while container runs; returns exit code when done
+            $logFile = $this->logDir . '/' . $runId . '.log';
+            file_put_contents($logFile, "Pulling image: {$image}\n---\n");
+            $exitCode = $this->streamContainerLogs($containerId, $logFile, $job->timeoutSeconds);
+
+            $output = (string) file_get_contents($logFile);
             $this->removeContainer($containerId);
 
             return $exitCode === 0
@@ -46,6 +53,13 @@ class DockerSocketExecutorAdapter implements ExecutorPort
     // ---------------------------------------------------------------------------
     // Docker API calls
     // ---------------------------------------------------------------------------
+
+    private function ensureLogDir(): void
+    {
+        if (!is_dir($this->logDir)) {
+            mkdir($this->logDir, 0777, true);
+        }
+    }
 
     private function ensureVolume(string $name): void
     {
@@ -110,10 +124,136 @@ class DockerSocketExecutorAdapter implements ExecutorPort
         }
     }
 
-    private function waitContainer(string $id, ?int $timeoutSeconds): int
+    /**
+     * Stream container logs to file in real time using Docker's /logs?follow=1 endpoint.
+     * Uses stream_select() to multiplex the wait-for-exit socket and the log-stream socket.
+     * Returns the container's exit code.
+     */
+    private function streamContainerLogs(string $id, string $logFile, ?int $timeoutSeconds): int
     {
-        $socketTimeout = $timeoutSeconds ?? 3600;
+        $deadline = time() + ($timeoutSeconds ?? 3600);
 
+        // Socket A: wait for container exit (blocks until container stops)
+        $waitSock = $this->openSocket();
+        stream_set_blocking($waitSock, false);
+        fwrite($waitSock, implode("\r\n", [
+            "POST /containers/{$id}/wait HTTP/1.0",
+            'Host: localhost',
+            'Content-Length: 0',
+        ]) . "\r\n\r\n");
+
+        // Socket B: stream logs live (HTTP/1.0 avoids chunked encoding)
+        $logSock = $this->openSocket();
+        stream_set_blocking($logSock, false);
+        fwrite($logSock, implode("\r\n", [
+            "GET /containers/{$id}/logs?stdout=1&stderr=1&follow=1 HTTP/1.0",
+            'Host: localhost',
+        ]) . "\r\n\r\n");
+
+        $fp = fopen($logFile, 'a');
+
+        $waitBuf = '';
+        $logBuf = '';
+        $logHeaderDone = false;
+        $exitCode = 1;
+
+        while (time() < $deadline) {
+            $read = [$waitSock, $logSock];
+            $write = null;
+            $except = null;
+
+            $ready = stream_select($read, $write, $except, 1);
+            if ($ready === false) {
+                break;
+            }
+
+            foreach ($read as $s) {
+                if ($s === $waitSock) {
+                    $chunk = fread($waitSock, 65536);
+                    if ($chunk !== false && $chunk !== '') {
+                        $waitBuf .= $chunk;
+                    }
+                    if (feof($waitSock)) {
+                        // Parse exit code from wait response
+                        if (str_contains($waitBuf, "\r\n\r\n")) {
+                            [, $body] = explode("\r\n\r\n", $waitBuf, 2);
+                            try {
+                                $data = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+                                $exitCode = $data['StatusCode'] ?? 1;
+                            } catch (\Throwable) {}
+                        }
+                        // Drain remaining log data then stop
+                        $this->drainLogSocket($logSock, $logBuf, $logHeaderDone, $fp);
+                        goto done;
+                    }
+                } elseif ($s === $logSock) {
+                    $chunk = fread($logSock, 8192);
+                    if ($chunk !== false && $chunk !== '') {
+                        $logBuf .= $chunk;
+                    }
+                    $this->processLogBuffer($logBuf, $logHeaderDone, $fp);
+                }
+            }
+        }
+
+        if (time() >= $deadline) {
+            try { $this->request('POST', "/containers/{$id}/kill"); } catch (\Throwable) {}
+        }
+
+        done:
+        fclose($fp);
+        fclose($waitSock);
+        fclose($logSock);
+
+        return $exitCode;
+    }
+
+    /**
+     * Process buffered log data: consume HTTP headers once, then strip Docker
+     * 8-byte multiplexed log headers and write text to the log file.
+     */
+    private function processLogBuffer(string &$buf, bool &$headerDone, mixed $fp): void
+    {
+        if (!$headerDone) {
+            $pos = strpos($buf, "\r\n\r\n");
+            if ($pos === false) {
+                return;
+            }
+            $buf = substr($buf, $pos + 4);
+            $headerDone = true;
+        }
+
+        // Parse Docker multiplexed log format: 8-byte header per frame
+        while (strlen($buf) >= 8) {
+            $size = unpack('N', substr($buf, 4, 4))[1];
+            if (strlen($buf) < 8 + $size) {
+                break;
+            }
+            $text = substr($buf, 8, $size);
+            $buf = substr($buf, 8 + $size);
+            if ($text !== '') {
+                fwrite($fp, $text);
+                fflush($fp);
+            }
+        }
+    }
+
+    private function drainLogSocket(mixed $sock, string &$buf, bool &$headerDone, mixed $fp): void
+    {
+        stream_set_blocking($sock, true);
+        stream_set_timeout($sock, 2);
+        while (!feof($sock)) {
+            $chunk = fread($sock, 8192);
+            if ($chunk === false || $chunk === '') {
+                break;
+            }
+            $buf .= $chunk;
+            $this->processLogBuffer($buf, $headerDone, $fp);
+        }
+    }
+
+    private function openSocket(): mixed
+    {
         $socket = stream_socket_client(
             'unix://' . $this->socketPath,
             $errno,
@@ -121,59 +261,10 @@ class DockerSocketExecutorAdapter implements ExecutorPort
             30,
             STREAM_CLIENT_CONNECT,
         );
-
         if ($socket === false) {
             throw new \RuntimeException("Docker socket connect failed: {$errstr} ({$errno})");
         }
-
-        stream_set_timeout($socket, $socketTimeout);
-
-        $path = "/containers/{$id}/wait";
-        $headers = implode("\r\n", [
-            "POST {$path} HTTP/1.1",
-            'Host: localhost',
-            'Content-Type: application/json',
-            'Content-Length: 0',
-            'Connection: close',
-        ]);
-        fwrite($socket, $headers . "\r\n\r\n");
-
-        $raw = '';
-        $timedOut = false;
-        while (!feof($socket)) {
-            $chunk = fread($socket, 65536);
-            $meta = stream_get_meta_data($socket);
-            if ($meta['timed_out']) {
-                $timedOut = true;
-                break;
-            }
-            if ($chunk !== false) {
-                $raw .= $chunk;
-            }
-        }
-        fclose($socket);
-
-        if ($timedOut) {
-            try { $this->request('POST', "/containers/{$id}/kill"); } catch (\Throwable) {}
-            return 1;
-        }
-
-        if (!str_contains($raw, "\r\n\r\n")) {
-            return 1;
-        }
-
-        [, $responseBody] = explode("\r\n\r\n", $raw, 2);
-        if (stripos(substr($raw, 0, strpos($raw, "\r\n\r\n")), 'Transfer-Encoding: chunked') !== false) {
-            $responseBody = $this->decodeChunked($responseBody);
-        }
-        $data = json_decode($responseBody, true, 512, JSON_THROW_ON_ERROR);
-        return $data['StatusCode'] ?? 1;
-    }
-
-    private function getLogs(string $id): string
-    {
-        $r = $this->request('GET', "/containers/{$id}/logs?stdout=1&stderr=1");
-        return $this->stripDockerLogHeaders($r['body']);
+        return $socket;
     }
 
     private function removeContainer(string $id): void
@@ -191,18 +282,7 @@ class DockerSocketExecutorAdapter implements ExecutorPort
      */
     private function request(string $method, string $path, ?array $body = null): array
     {
-        $socket = stream_socket_client(
-            'unix://' . $this->socketPath,
-            $errno,
-            $errstr,
-            30,
-            STREAM_CLIENT_CONNECT,
-        );
-
-        if ($socket === false) {
-            throw new \RuntimeException("Docker socket connect failed: {$errstr} ({$errno})");
-        }
-
+        $socket = $this->openSocket();
         stream_set_timeout($socket, 300);
 
         $bodyJson = $body !== null ? json_encode($body, JSON_THROW_ON_ERROR) : '';
@@ -250,24 +330,5 @@ class DockerSocketExecutorAdapter implements ExecutorPort
             $data = substr($data, $pos + 2 + $size + 2);
         }
         return $output;
-    }
-
-    /**
-     * Docker multiplexed log stream: 8-byte header per chunk.
-     * Bytes 0: stream type. Bytes 4-7: payload size (big-endian uint32).
-     */
-    private function stripDockerLogHeaders(string $raw): string
-    {
-        $output = '';
-        $offset = 0;
-        $len = strlen($raw);
-
-        while ($offset + 8 <= $len) {
-            $size = unpack('N', substr($raw, $offset + 4, 4))[1];
-            $output .= substr($raw, $offset + 8, $size);
-            $offset += 8 + $size;
-        }
-
-        return $output !== '' ? $output : $raw;
     }
 }

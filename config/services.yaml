@@ -30,6 +30,11 @@ services:
         class: App\Infrastructure\Executor\DockerSocketExecutorAdapter
         arguments:
             $socketPath: '/var/run/docker.sock'
+            $logDir: '/var/husk-logs'
+
+    App\Infrastructure\Http\Controller\StreamJobLogsController:
+        arguments:
+            $logDir: '/var/husk-logs'
 
     App\Infrastructure\Http\Controller\ListPipelinesController:
         arguments:
